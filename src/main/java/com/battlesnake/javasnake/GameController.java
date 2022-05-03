@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -41,7 +42,7 @@ public class GameController {
     }
 
     @PostMapping("/move")
-    public Map<String, String> move(JsonNode moveRequest) {
+    public Map<String, String> move(@RequestBody JsonNode moveRequest) {
 
         try {
             LOG.info("Data: {}", JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(moveRequest));
@@ -49,28 +50,17 @@ public class GameController {
             LOG.error("Error parsing payload", e);
         }
 
-        /*
-         * Example how to retrieve data from the request payload:
-         *
-         * String gameId = moveRequest.get("game").get("id").asText();
-         *
-         * int height = moveRequest.get("board").get("height").asInt();
-         *
-         */
-
         JsonNode head = moveRequest.get("you").get("head");
         JsonNode body = moveRequest.get("you").get("body");
 
+        JsonNode xMax = moveRequest.get("board").get("width");
+        JsonNode yMax = moveRequest.get("board").get("height");
+
         ArrayList<String> possibleMoves = new ArrayList<>(Arrays.asList("up", "down", "left", "right"));
 
-        // Don't allow your Battlesnake to move back in on its own neck
+        // TODO: refactor this function to avoid entire body
         avoidMyNeck(head, body, possibleMoves);
-
-        // TODO: Using information from 'moveRequest', find the edges of the board and
-        // don't let your Battlesnake move beyond them board_height = ? board_width = ?
-
-        // TODO Using information from 'moveRequest', don't let your Battlesnake pick a
-        // move that would hit its own body
+        avoidWalls(head, yMax.asInt(), xMax.asInt(), possibleMoves);
 
         // TODO: Using information from 'moveRequest', don't let your Battlesnake pick a
         // move that would collide with another Battlesnake
@@ -106,6 +96,26 @@ public class GameController {
             possibleMoves.remove("down");
         } else if (neck.get("y").asInt() > head.get("y").asInt()) {
             possibleMoves.remove("up");
+        }
+    }
+
+    public void avoidWalls(JsonNode head, int height, int width, ArrayList<String> possibleMoves) {
+        int maxX = width - 1;
+        int maxY = height - 1;
+        int headX = head.get("x").asInt();
+        int headY = head.get("y").asInt();
+
+        if (headX == maxX) {
+            possibleMoves.remove("right");
+        }
+        if (headX == 0) {
+            possibleMoves.remove("left");
+        }
+        if (headY == maxY) {
+            possibleMoves.remove("up");
+        }
+        if (headY == 0) {
+            possibleMoves.remove("down");
         }
     }
 }
